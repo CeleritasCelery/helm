@@ -695,6 +695,15 @@ that use `helm-comp-read' See `helm-M-x' for example."
 ;;; Specialized handlers
 ;;
 ;;
+(defun helm-adaptive-sort-symbol-at-point (candidates _source)
+  "move symbol at point to the start of list"
+  (if-let ((adaptivep helm-adaptive-mode)
+           (symbol (with-helm-current-buffer
+                     (thing-at-point 'symbol t)))
+           (valid (member symbol candidates)))
+      (cons symbol (remove symbol candidates))
+    candidates))
+
 (defun helm-completing-read-symbols
     (prompt _collection test _require-match init
      hist default _inherit-input-method name buffer)
@@ -708,7 +717,9 @@ that use `helm-comp-read' See `helm-M-x' for example."
                                             (and (funcall test x)
                                                  (not (keywordp x))))
                                           (or (car-safe default) default)))
-               :filtered-candidate-transformer 'helm-apropos-default-sort-fn
+               :filtered-candidate-transformer '(helm-apropos-default-sort-fn
+                                                 helm-adaptive-sort
+                                                 helm-adaptive-sort-symbol-at-point)
                :help-message #'helm-comp-read-help-message
                :fuzzy-match helm-mode-fuzzy-match
                :persistent-action
