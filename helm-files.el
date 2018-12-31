@@ -669,7 +669,8 @@ Should not be used among other sources.")
    (filtered-candidate-transformer
     :initform '(helm-ff-sort-candidates
                 helm-ff-filter-candidates
-                helm-adaptive-sort))
+                helm-adaptive-sort
+                helm-ff-sort-hardlink))
    (persistent-action-if :initform 'helm-find-files-persistent-action-if)
    (persistent-help :initform "Hit1 Expand Candidate, Hit2 or (C-u) Find file")
    (help-message :initform 'helm-ff-help-message)
@@ -2609,7 +2610,7 @@ If PATTERN is a valid directory name,return PATTERN unchanged."
                      (concat ".*" (regexp-quote bn))))))))
 
 (defun helm-dir-is-dot (dir)
-  (string-match "\\(?:/\\|\\`\\)\\.\\{1,2\\}\\'" dir))
+  (string-match-p "\\(?:/\\|\\`\\)\\.\\{1,2\\}\\'" dir))
 
 (defun helm-ff-save-history ()
   "Store the last value of `helm-ff-default-directory' in `helm-ff-history'.
@@ -2797,11 +2798,6 @@ return FNAME prefixed with [?]."
            (concat prefix-url " " fname))
           (new-file (concat prefix-new " " fname)))))
 
-(defun helm-ff-score-candidate-for-pattern (str pattern)
-  (if (member str '("." ".."))
-      200
-      (helm-score-candidate-for-pattern str pattern)))
-
 (defun helm-ff-sort-candidates-1 (candidates input)
   "Sort function for `helm-source-find-files'.
 Return candidates prefixed with basename of INPUT first."
@@ -2814,7 +2810,7 @@ Return candidates prefixed with basename of INPUT first."
            (all (sort candidates
                       (lambda (s1 s2)
                         (let* ((score (lambda (str)
-                                        (helm-ff-score-candidate-for-pattern
+                                        (helm-score-candidate-for-pattern
                                          str (helm-basename input))))
                                (bn1 (helm-basename (if (consp s1) (cdr s1) s1)))
                                (bn2 (helm-basename (if (consp s2) (cdr s2) s2)))
@@ -2833,24 +2829,36 @@ Return candidates prefixed with basename of INPUT first."
 Return candidates prefixed with basename of `helm-input' first."
   (helm-ff-sort-candidates-1 candidates helm-input))
 
-(defun helm-ff-boring-file-p (file)
+(defsubst helm-ff-boring-file-p (file)
   ;; Prevent user doing silly thing like
   ;; adding the dotted files to boring regexps (#924).
-  (and (not (string-match "\\.$" file))
-       (string-match  helm-ff--boring-regexp file)))
+  (and (not (equal "." file))
+       (string-match helm-ff--boring-regexp file)))
+
 (defun helm-ff-filter-candidates (candidates _source)
   "Run Filter candidates one by one"
   (cl-loop for f in candidates
            for ff = (helm-ff-filter-candidate-one-by-one f)
            when ff collect ff))
 
+(defun helm-ff-sort-hardlink (candidates _source)
+  "move to the hardlinks to the top of the list when adaptive sorting"
+  (if-let ((adaptivep helm-adaptive-mode)
+           (hardlink (cl-find-if (lambda (cand)
+                                   (helm-dir-is-dot (or (cdr-safe cand) "")))
+                                 candidates)))
+      (cons hardlink (remove hardlink candidates))
+    candidates))
+
 (defun helm-ff-filter-candidate-one-by-one (file)
   "`filter-one-by-one' Transformer function for `helm-source-find-files'."
   ;; Handle boring files
   (let ((basename (helm-basename file))
         dot)
-    (unless (and helm-ff-skip-boring-files
-                 (helm-ff-boring-file-p basename))
+    (unless (or (and helm-ff-skip-boring-files
+                     (helm-ff-boring-file-p basename))
+                ;; Remove the parent hardlink ..
+                (equal ".." basename))
 
       ;; Handle tramp files with minimal highlighting.
       (if (and (or (string-match-p helm-tramp-file-name-regexp helm-pattern)
@@ -3561,17 +3569,29 @@ is helm-source-find-files."
   (with-selected-frame helm-initial-frame
     (helm-clean-up-minibuffer)))
 
+(defun helm-ff-skip-dots ()
+  "when opening a new directory don't preselect the dot
+  hardlinks"
+  (let ((cands (helm-marked-candidates))
+        (sel   (helm-get-selection)))
+    (if (and sel
+             (not (cdr cands))
+             (equal "." (helm-basename sel)))
+        (helm-next-line))))
+
 (defun helm-ff-setup-update-hook ()
   (dolist (hook '(helm-ff-clean-initial-input ; Add to be called first.
                   helm-ff-move-to-first-real-candidate
                   helm-ff-update-when-only-one-matched
-                  helm-ff-auto-expand-to-home-or-root))
+                  helm-ff-auto-expand-to-home-or-root
+                  helm-ff-skip-dots))
     (add-hook 'helm-after-update-hook hook)))
 
 (defun helm-find-files-cleanup ()
   (mapc (lambda (hook)
           (remove-hook 'helm-after-update-hook hook))
-        '(helm-ff-auto-expand-to-home-or-root
+        '(helm-ff-skip-dots
+          helm-ff-auto-expand-to-home-or-root
           helm-ff-update-when-only-one-matched
           helm-ff-move-to-first-real-candidate
           helm-ff-clean-initial-input)))
