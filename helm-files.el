@@ -668,10 +668,8 @@ Should not be used among other sources.")
    (candidates :initform 'helm-find-files-get-candidates)
    (filtered-candidate-transformer
     :initform '(helm-ff-sort-candidates
-                (lambda (candidates _source)
-                  (cl-loop for f in candidates
-                           for ff = (helm-ff-filter-candidate-one-by-one f)
-                           when ff collect ff))))
+                helm-ff-filter-candidates
+                helm-adaptive-sort))
    (persistent-action-if :initform 'helm-find-files-persistent-action-if)
    (persistent-help :initform "Hit1 Expand Candidate, Hit2 or (C-u) Find file")
    (help-message :initform 'helm-ff-help-message)
@@ -2840,6 +2838,11 @@ Return candidates prefixed with basename of `helm-input' first."
   ;; adding the dotted files to boring regexps (#924).
   (and (not (string-match "\\.$" file))
        (string-match  helm-ff--boring-regexp file)))
+(defun helm-ff-filter-candidates (candidates _source)
+  "Run Filter candidates one by one"
+  (cl-loop for f in candidates
+           for ff = (helm-ff-filter-candidate-one-by-one f)
+           when ff collect ff))
 
 (defun helm-ff-filter-candidate-one-by-one (file)
   "`filter-one-by-one' Transformer function for `helm-source-find-files'."
@@ -3226,6 +3229,9 @@ If a prefix arg is given or `helm-follow-mode' is on open file."
         (helm-follow-mode -1)
         (cl-return-from helm-find-files-persistent-action-if
           (message "Helm-follow-mode allowed only on images, disabling"))))
+    (when helm-adaptive-mode
+      (let (helm-adaptive-done)
+        (helm-adaptive-store-selection)))
     (cond ((and (helm-ff--invalid-tramp-name-p)
                 (string-match helm-tramp-file-name-regexp candidate))
            (cons (lambda (_candidate)
