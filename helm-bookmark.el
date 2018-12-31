@@ -40,9 +40,9 @@
   :type 'boolean)
 
 (defcustom helm-bookmark-default-filtered-sources
-  (append '(helm-source-bookmark-org
+  (append '(helm-source-bookmark-helm-find-files
             helm-source-bookmark-files&dirs
-            helm-source-bookmark-helm-find-files
+            helm-source-bookmark-org
             helm-source-bookmark-info
             helm-source-bookmark-gnus
             helm-source-bookmark-man
