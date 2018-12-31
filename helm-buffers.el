@@ -528,16 +528,6 @@ Should be called after others transformers i.e (boring buffers)."
            collect p into lst
            finally return (mapconcat 'identity lst (or separator " "))))
 
-(defun helm-buffers-sort-transformer (candidates source)
-  (if (string= helm-pattern "")
-      candidates
-      (if helm-buffers-fuzzy-matching
-          (let ((helm-pattern (helm-buffers--pattern-sans-filters)))
-            (funcall helm-fuzzy-sort-fn candidates source))
-          (sort candidates
-                (lambda (s1 s2)
-                  (< (string-width s1) (string-width s2)))))))
-
 (defun helm-buffers-mark-similar-buffers-1 ()
   (with-helm-window
     (let* ((src (helm-get-current-source))

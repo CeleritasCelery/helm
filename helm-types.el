@@ -201,7 +201,6 @@
   (setf (slot-value source 'mode-line) (list "Buffer(s)" helm-mode-line-string))
   (setf (slot-value source 'filtered-candidate-transformer)
         '(helm-skip-boring-buffers
-          helm-buffers-sort-transformer
           helm-highlight-buffers))
   (setf (slot-value source 'group) 'helm-buffers))
 
