@@ -4287,15 +4287,20 @@ Don't use it in your own code unless you know what you are doing.")
 (defvar helm-buffers-in-project-p)
 
 (defun helm-browse-project-get-buffers (root-directory)
+  (setq root-directory (when root-directory (file-truename root-directory)))
   (cl-loop for b in (helm-buffer-list)
            ;; FIXME: Why default-directory is root-directory
            ;; for current-buffer when coming from helm-quit-and-find-file.
-           for cd = (with-current-buffer b default-directory)
-           for bn = (buffer-file-name (get-buffer b))
-           if (or (and bn (file-in-directory-p bn root-directory))
-                  (and (null bn)
-                       (not (file-remote-p cd))
-                       (file-in-directory-p cd root-directory)))
+           for root = (with-current-buffer b
+                        (and (boundp 'default-project-root)
+                             default-project-root))
+           if (or (and root
+                       (equal root root-directory))
+                  (and (null root)
+                       (with-current-buffer b
+                         (setq-local default-project-root
+                                     (file-truename (or (cdr (project-current)) "")))
+                         (equal default-project-root root-directory))))
            collect b))
 
 (defun helm-browse-project-build-buffers-source (directory)
