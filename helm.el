@@ -3146,6 +3146,8 @@ See :after-init-hook and :before-init-hook in `helm-source'."
   (clrhash helm-candidate-cache)
   (helm-create-helm-buffer)
   (helm-clear-visible-mark)
+  (with-helm-buffer
+    (setq cursor-in-non-selected-windows nil))
   ;; Run global hook.
   (helm-log-run-hook 'helm-after-initialize-hook)
   ;; Run local source hook.
