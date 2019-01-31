@@ -2755,7 +2755,8 @@ in `helm-find-files-persistent-action-if'."
                (delete-window helm-persistent-action-display-window)
              (set-window-buffer win helm-current-buffer))
            (message "Buffer `%s' killed" buf-name))
-          (t (find-file candidate)))))
+          ((file-exists-p candidate)
+           (find-file candidate)))))
 
 (defun helm-ff-run-kill-buffer-persistent ()
   "Execute `helm-ff-kill-buffer-fname' without quitting."
